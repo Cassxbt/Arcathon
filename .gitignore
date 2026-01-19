@@ -32,3 +32,14 @@ recovery_file_*.dat
 
 # Claude Code local settings (may contain secrets)
 .claude/
+
+# Local planning/documentation files (keep these local only)
+HACKATHON_IDEAS.md
+PRD.md
+GENLAYER_KNOWLEDGE_BASE.md
+*.md
+!README.md
+
+# Local setup/utility scripts (not for production)
+scripts/
+supabase-schema.sql
