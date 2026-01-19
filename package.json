@@ -1,0 +1,36 @@
+{
+  "name": "payvoice",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Voice-first payment assistant on WhatsApp - Built on Circle Arc with USDC",
+  "main": "src/index.js",
+  "scripts": {
+    "generate-secret": "node scripts/generate-entity-secret.js",
+    "register-secret": "node scripts/register-entity-secret.js",
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "circle",
+    "usdc",
+    "arc",
+    "whatsapp",
+    "voice",
+    "payments",
+    "elevenlabs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^9.2.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.1.0",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
