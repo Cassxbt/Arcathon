@@ -11,11 +11,5 @@
       "src": "/(.*)",
       "dest": "api/index.js"
     }
-  ],
-  "env": {
-    "CIRCLE_API_KEY": "@circle_api_key",
-    "CIRCLE_ENTITY_SECRET": "@circle_entity_secret",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_ANON_KEY": "@supabase_anon_key"
-  }
+  ]
 }
