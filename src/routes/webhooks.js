@@ -6,6 +6,11 @@
 import express from 'express';
 import * as circleService from '../services/circle.js';
 import * as dbService from '../services/db.js';
+import {
+  authenticateToolRequest,
+  rateLimitByPhone,
+  validateTransactionLimits
+} from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -175,8 +180,9 @@ router.post('/post-call', async (req, res) => {
  * Get user's USDC balance
  * Input: { phone: string }
  * Output: { balance: string, currency: "USDC" }
+ * Security: Bearer token required, rate limited
  */
-router.post('/balance', async (req, res) => {
+router.post('/balance', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
   try {
     const { phone } = req.body;
 
@@ -230,8 +236,9 @@ router.post('/balance', async (req, res) => {
  * Send USDC to a contact
  * Input: { phone: string, recipientName: string, amount: string }
  * Output: { success: boolean, txId: string, newBalance: string }
+ * Security: Bearer token required, rate limited, transaction limits enforced
  */
-router.post('/send', async (req, res) => {
+router.post('/send', authenticateToolRequest, rateLimitByPhone, validateTransactionLimits, async (req, res) => {
   try {
     const { phone, recipientName, amount } = req.body;
 
@@ -330,8 +337,9 @@ router.post('/send', async (req, res) => {
  * Get recent transactions
  * Input: { phone: string, limit?: number }
  * Output: { transactions: Array<{type, amount, recipient, date}> }
+ * Security: Bearer token required, rate limited
  */
-router.post('/history', async (req, res) => {
+router.post('/history', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
   try {
     const { phone, limit = 5 } = req.body;
 
@@ -384,7 +392,7 @@ router.post('/history', async (req, res) => {
  * Input: { phone: string }
  * Output: { contacts: Array<{name, walletAddress}> }
  */
-router.post('/contacts', async (req, res) => {
+router.post('/contacts', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
   try {
     const { phone } = req.body;
 
@@ -434,7 +442,7 @@ router.post('/contacts', async (req, res) => {
  * Input: { phone: string, name: string, walletAddress: string }
  * Output: { success: boolean, contact: object }
  */
-router.post('/contacts/add', async (req, res) => {
+router.post('/contacts/add', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
   try {
     const { phone, name, walletAddress } = req.body;
 
