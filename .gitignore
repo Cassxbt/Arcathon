@@ -43,3 +43,6 @@ GENLAYER_KNOWLEDGE_BASE.md
 # Local setup/utility scripts (not for production)
 scripts/
 supabase-schema.sql
+
+# Project instructions (local only)
+CLAUDE.md
