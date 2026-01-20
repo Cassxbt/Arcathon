@@ -24,6 +24,88 @@ function validateRequiredFields(body, requiredFields) {
 }
 
 /**
+ * POST /api/conversation-init
+ * ElevenLabs Conversation Initiation Webhook
+ * Called when a new conversation starts to fetch user context
+ * Input: { caller_id: string, agent_id: string, called_number?: string, call_sid?: string }
+ * Output: { type: "conversation_initiation_client_data", dynamic_variables: {...} }
+ */
+router.post('/conversation-init', async (req, res) => {
+  try {
+    const { caller_id, agent_id } = req.body;
+
+    console.log(`[Conversation Init] New conversation from: ${caller_id}, agent: ${agent_id}`);
+
+    // Normalize phone number (remove + and any spaces/dashes)
+    const normalizedPhone = caller_id ? caller_id.replace(/[\s\-\+]/g, '') : null;
+
+    // Default response for unknown users
+    let dynamicVariables = {
+      user_name: 'there',
+      account_balance: '0.00',
+      recent_transaction: 'No recent transactions',
+      is_new_user: 'true'
+    };
+
+    if (normalizedPhone) {
+      // Try to find user by phone
+      const user = await dbService.getUserByPhone(normalizedPhone);
+
+      if (user) {
+        dynamicVariables.user_name = user.name || 'there';
+        dynamicVariables.is_new_user = 'false';
+
+        // Get balance if user has wallet
+        if (user.wallet_id) {
+          try {
+            const balance = await circleService.getBalance(user.wallet_id);
+            dynamicVariables.account_balance = balance || '0.00';
+          } catch (balanceError) {
+            console.error(`[Conversation Init] Failed to fetch balance: ${balanceError.message}`);
+            dynamicVariables.account_balance = 'unavailable';
+          }
+        }
+
+        // Get most recent transaction
+        try {
+          const transactions = await dbService.getRecentTransactions(user.id, 1);
+          if (transactions && transactions.length > 0) {
+            const tx = transactions[0];
+            const txDate = new Date(tx.created_at).toLocaleDateString();
+            dynamicVariables.recent_transaction = `${tx.type === 'send' ? 'Sent' : 'Received'} $${tx.amount} ${tx.type === 'send' ? 'to' : 'from'} ${tx.recipient_name} on ${txDate}`;
+          }
+        } catch (txError) {
+          console.error(`[Conversation Init] Failed to fetch transactions: ${txError.message}`);
+        }
+
+        console.log(`[Conversation Init] Found user: ${user.name}, balance: ${dynamicVariables.account_balance}`);
+      } else {
+        console.log(`[Conversation Init] New user, phone: ${normalizedPhone}`);
+      }
+    }
+
+    // Return ElevenLabs conversation initiation format
+    res.json({
+      type: 'conversation_initiation_client_data',
+      dynamic_variables: dynamicVariables
+    });
+
+  } catch (error) {
+    console.error(`[Conversation Init Error] ${error.message}`);
+    // Still return a valid response so conversation can proceed
+    res.json({
+      type: 'conversation_initiation_client_data',
+      dynamic_variables: {
+        user_name: 'there',
+        account_balance: '0.00',
+        recent_transaction: 'No recent transactions',
+        is_new_user: 'true'
+      }
+    });
+  }
+});
+
+/**
  * POST /api/balance
  * Get user's USDC balance
  * Input: { phone: string }
