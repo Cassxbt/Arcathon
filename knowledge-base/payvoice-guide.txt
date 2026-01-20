@@ -1,0 +1,114 @@
+## About PayVoice
+
+PayVoice is your voice-first payment assistant that lets you send money just by talking. No apps to open, no buttons to tap - just tell me what you need and I'll handle the rest. Think of me as your personal financial assistant who lives in your WhatsApp.
+
+## What is USDC?
+
+USDC stands for USD Coin. It's a digital dollar - meaning 1 USDC is always worth exactly 1 US dollar. Unlike Bitcoin or other cryptocurrencies that go up and down in value, USDC stays stable. That's why it's called a "stablecoin."
+
+Here's the simple way to think about it: if you have 50 USDC, you have the digital equivalent of 50 US dollars. You can send it to anyone, anywhere in the world, in seconds - without waiting for banks or paying high fees.
+
+USDC is issued by Circle, a regulated financial company. It's backed by real dollars held in reserve, so your money is safe.
+
+## How Payments Work
+
+When you send money through PayVoice, here's what happens behind the scenes:
+
+1. You tell me who you want to pay and how much
+2. I look up that person in your contacts to find their wallet address
+3. I ask you to confirm the details (I'll never send money without your say-so)
+4. Once you confirm, the money moves instantly on the blockchain
+5. The recipient gets their USDC in seconds, not days
+
+The beautiful thing is you don't need to understand blockchain or wallets - just tell me "send 20 dollars to Mom" and I handle everything else.
+
+## Your Wallet
+
+Your wallet is like a digital bank account, but you have complete control. It has a unique address (a long string of letters and numbers) that identifies it on the blockchain. Don't worry about memorizing it - I keep track of all that for you.
+
+Your wallet holds your USDC balance. You can check it anytime just by asking me "what's my balance?"
+
+## Contacts
+
+Contacts make sending money easy. Instead of dealing with complicated wallet addresses, you save people with simple names like "Mom," "John," or "Landlord."
+
+To add a contact, you'll need:
+- A name you'll remember (like "Sarah" or "Coffee Shop")
+- Their wallet address (they can get this from their own wallet app)
+
+Once saved, just say "send 50 dollars to Sarah" and I know exactly where to send it.
+
+To see all your contacts, just ask me "show my contacts" or "who can I send money to?"
+
+## Transaction History
+
+I keep track of every payment you make. Want to see what you've sent recently? Just ask "show my recent transactions" or "what did I send last week?"
+
+Each transaction record includes:
+- Who you sent to (or received from)
+- The amount
+- When it happened
+- Whether it completed successfully
+
+## Safety and Security
+
+Your security is my top priority. Here's how I keep your money safe:
+
+**Confirmation Required**: I will NEVER send money without you explicitly confirming. I'll always repeat back the amount and recipient, then wait for you to say "yes," "confirm," or "send it."
+
+**Contact Verification**: Before any payment, I check that the recipient exists in your contacts. No contacts, no accidental sends to strangers.
+
+**Clear Communication**: If something seems off or I'm not sure what you meant, I'll ask for clarification rather than guess.
+
+## Common Questions
+
+**"Is my money safe?"**
+Yes. USDC is held in secure, regulated reserves. Your wallet is protected by enterprise-grade security. And I always confirm before any transaction.
+
+**"Are there fees?"**
+PayVoice keeps fees minimal. Small network fees may apply for transactions, but there are no hidden charges or surprise costs.
+
+**"How fast are transfers?"**
+Usually seconds. Unlike bank transfers that take days, blockchain payments settle almost instantly.
+
+**"Can I send money internationally?"**
+Absolutely. USDC works the same whether you're sending to someone across the street or across the world. No special international fees.
+
+**"What if I send to the wrong person?"**
+That's why I always confirm before sending. Blockchain transactions can't be reversed, so I make sure you're certain before we proceed.
+
+**"What if I don't have enough balance?"**
+I'll let you know before attempting the transfer. I always check your balance first and will tell you if you need to add more funds.
+
+**"How do I add money to my account?"**
+You can receive USDC from anyone who has your wallet address, or purchase USDC through various exchanges and transfer it to your PayVoice wallet.
+
+## Tips for Using PayVoice
+
+1. **Speak naturally** - You don't need special commands. "Send 20 bucks to Mike" works just as well as "transfer 20 dollars to Mike."
+
+2. **Be specific with amounts** - Say "fifty dollars" rather than "some money" so I know exactly what you mean.
+
+3. **Use contact names** - Make sure you've saved contacts for people you send to regularly.
+
+4. **Confirm carefully** - When I repeat back the transaction details, take a moment to verify everything is correct.
+
+5. **Ask questions** - Not sure about something? Just ask! I'm here to help.
+
+## Troubleshooting
+
+**"I said send but nothing happened"**
+I always wait for confirmation. Make sure you clearly said "yes," "confirm," or "send it" after I repeated the details.
+
+**"Contact not found"**
+The name might be spelled differently than how you said it. Try asking "show my contacts" to see the exact names saved.
+
+**"Transaction failed"**
+This is rare, but can happen if there's a network issue. Your money stays safe - just try again in a moment.
+
+**"Balance seems wrong"**
+Ask me to check your balance again. Remember that recent transactions may take a few seconds to reflect.
+
+## About Circle
+
+Circle is the company behind USDC. They're a global financial technology firm that's been around since 2013. Circle is regulated, transparent, and publishes regular reports showing that every USDC is backed by real dollars. When you use PayVoice, you're using technology trusted by millions of people and major financial institutions worldwide.

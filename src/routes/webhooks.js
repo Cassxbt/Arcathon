@@ -106,6 +106,71 @@ router.post('/conversation-init', async (req, res) => {
 });
 
 /**
+ * POST /api/post-call
+ * ElevenLabs Post-Call Webhook
+ * Receives conversation data after each call ends
+ * Used for logging, analytics, and debugging
+ */
+router.post('/post-call', async (req, res) => {
+  try {
+    const { type, event_timestamp, data } = req.body;
+
+    console.log(`[Post-Call Webhook] Received ${type} event`);
+
+    if (type === 'post_call_transcription' && data) {
+      const {
+        agent_id,
+        conversation_id,
+        status,
+        transcript,
+        metadata,
+        analysis
+      } = data;
+
+      // Log conversation summary
+      console.log(`[Post-Call] Conversation ID: ${conversation_id}`);
+      console.log(`[Post-Call] Status: ${status}`);
+      console.log(`[Post-Call] Duration: ${metadata?.call_duration_secs || 'N/A'} seconds`);
+
+      // Log transcript summary
+      if (transcript && transcript.length > 0) {
+        console.log(`[Post-Call] Transcript turns: ${transcript.length}`);
+
+        // Log first and last messages for quick overview
+        const firstMsg = transcript[0];
+        const lastMsg = transcript[transcript.length - 1];
+        console.log(`[Post-Call] First: [${firstMsg?.role}] ${firstMsg?.message?.substring(0, 100)}...`);
+        console.log(`[Post-Call] Last: [${lastMsg?.role}] ${lastMsg?.message?.substring(0, 100)}...`);
+      }
+
+      // Log analysis if available
+      if (analysis) {
+        console.log(`[Post-Call] Call successful: ${analysis.call_successful}`);
+        if (analysis.transcript_summary) {
+          console.log(`[Post-Call] Summary: ${analysis.transcript_summary}`);
+        }
+      }
+
+      // Store in database for later review (optional enhancement)
+      // await dbService.logConversation(conversation_id, data);
+    }
+
+    if (type === 'post_call_audio') {
+      console.log(`[Post-Call] Audio received for conversation: ${data?.conversation_id}`);
+      // Audio is base64 encoded MP3 - could store for playback
+    }
+
+    // Must return 200 for ElevenLabs to consider webhook successful
+    res.status(200).json({ received: true });
+
+  } catch (error) {
+    console.error(`[Post-Call Webhook Error] ${error.message}`);
+    // Still return 200 to acknowledge receipt
+    res.status(200).json({ received: true, error: error.message });
+  }
+});
+
+/**
  * POST /api/balance
  * Get user's USDC balance
  * Input: { phone: string }
