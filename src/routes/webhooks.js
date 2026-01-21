@@ -687,13 +687,13 @@ router.post('/contacts/add', authenticateToolRequest, rateLimitByPhone, async (r
 /**
  * POST /api/policy
  * Get or update user's policy settings
- * Input: { phone: string, updates?: object }
+ * Input: { phone: string, auto_approve_limit?: number, daily_spending_limit?: number, weekly_spending_limit?: number }
  * Output: { policy: object }
  * Security: Bearer token required
  */
 router.post('/policy', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
   try {
-    const { phone, updates } = req.body;
+    const { phone, auto_approve_limit, daily_spending_limit, weekly_spending_limit, low_balance_alert_threshold } = req.body;
 
     const validation = validateRequiredFields(req.body, ['phone']);
     if (!validation.valid) {
@@ -711,23 +711,17 @@ router.post('/policy', authenticateToolRequest, rateLimitByPhone, async (req, re
       });
     }
 
+    // Check if any update fields are provided (flat fields, not nested)
+    const sanitizedUpdates = {};
+    if (auto_approve_limit !== undefined) sanitizedUpdates.auto_approve_limit = parseFloat(auto_approve_limit);
+    if (daily_spending_limit !== undefined) sanitizedUpdates.daily_spending_limit = parseFloat(daily_spending_limit);
+    if (weekly_spending_limit !== undefined) sanitizedUpdates.weekly_spending_limit = parseFloat(weekly_spending_limit);
+    if (low_balance_alert_threshold !== undefined) sanitizedUpdates.low_balance_alert_threshold = parseFloat(low_balance_alert_threshold);
+
     let policy;
-    if (updates && Object.keys(updates).length > 0) {
-      // Validate update fields
-      const allowedFields = [
-        'auto_approve_limit',
-        'daily_spending_limit',
-        'weekly_spending_limit',
-        'low_balance_alert_threshold'
-      ];
-      const sanitizedUpdates = {};
-      for (const key of allowedFields) {
-        if (updates[key] !== undefined) {
-          sanitizedUpdates[key] = parseFloat(updates[key]);
-        }
-      }
+    if (Object.keys(sanitizedUpdates).length > 0) {
       policy = await policyService.updateUserPolicy(user.id, sanitizedUpdates);
-      console.log(`[Policy] Updated policy for ${phone}`);
+      console.log(`[Policy] Updated policy for ${phone}:`, sanitizedUpdates);
     } else {
       policy = await policyService.getUserPolicy(user.id);
     }
