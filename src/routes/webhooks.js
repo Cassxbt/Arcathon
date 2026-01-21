@@ -1,11 +1,18 @@
 /**
  * PayVoice - Webhook Routes
  * ElevenLabs agent tool endpoints for voice-activated payments
+ *
+ * AGENTIC FEATURES:
+ * - IDENTITY: Wallet-based verification
+ * - POLICIES: Auto-approve, trusted contacts, spending limits
+ * - GUARDRAILS: Budget enforcement, alerts, txHash confirmation
+ * - TREASURY: Spending analytics, balance management
  */
 
 import express from 'express';
 import * as circleService from '../services/circle.js';
 import * as dbService from '../services/db.js';
+import * as policyService from '../services/policy.js';
 import {
   authenticateToolRequest,
   rateLimitByPhone,
@@ -27,6 +34,82 @@ function validateRequiredFields(body, requiredFields) {
     missing
   };
 }
+
+/**
+ * POST /api/verify
+ * PILLAR 1: IDENTITY - Verify user identity
+ * Can verify by phone + optional wallet address confirmation
+ * Input: { phone: string, walletLast4?: string }
+ * Output: { verified: boolean, user: object }
+ * Security: Bearer token required
+ */
+router.post('/verify', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
+  try {
+    const { phone, walletLast4 } = req.body;
+
+    const validation = validateRequiredFields(req.body, ['phone']);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        missing: validation.missing
+      });
+    }
+
+    console.log(`[Verify] Identity check for phone: ${phone}`);
+
+    const user = await dbService.getUserByPhone(phone);
+
+    if (!user) {
+      return res.json({
+        verified: false,
+        reason: 'No account found for this phone number',
+        isNewUser: true
+      });
+    }
+
+    // If wallet verification requested
+    if (walletLast4 && user.wallet_address) {
+      const actualLast4 = user.wallet_address.slice(-4).toLowerCase();
+      if (walletLast4.toLowerCase() !== actualLast4) {
+        console.log(`[Verify] Wallet verification failed for ${phone}`);
+        return res.json({
+          verified: false,
+          reason: 'Wallet address does not match',
+          isNewUser: false
+        });
+      }
+    }
+
+    // Get policy for context
+    const policy = await policyService.getUserPolicy(user.id);
+
+    // Get any unread alerts
+    const alerts = await policyService.getUnreadAlerts(user.id);
+
+    console.log(`[Verify] Identity verified for ${user.name || phone}`);
+
+    res.json({
+      verified: true,
+      user: {
+        name: user.name || 'User',
+        hasWallet: !!user.wallet_id,
+        walletLast4: user.wallet_address ? user.wallet_address.slice(-4) : null
+      },
+      policy: {
+        autoApproveLimit: policy.auto_approve_limit,
+        dailyLimit: policy.daily_spending_limit
+      },
+      pendingAlerts: alerts.length,
+      isNewUser: false
+    });
+  } catch (error) {
+    console.error(`[Verify Error] ${error.message}`);
+    res.status(500).json({
+      error: 'Verification failed',
+      message: error.message
+    });
+  }
+});
 
 /**
  * POST /api/conversation-init
@@ -233,14 +316,22 @@ router.post('/balance', authenticateToolRequest, rateLimitByPhone, async (req, r
 
 /**
  * POST /api/send
- * Send USDC to a contact
- * Input: { phone: string, recipientName: string, amount: string }
- * Output: { success: boolean, txId: string, newBalance: string }
+ * Send USDC to a contact with AGENTIC features
+ * Input: { phone: string, recipientName: string, amount: string, confirmed?: boolean }
+ * Output: { success: boolean, txHash: string, newBalance: string, autoApproved: boolean, ... }
+ *
+ * AGENTIC FEATURES:
+ * - Auto-approve for trusted contacts under limit
+ * - Budget enforcement (daily/weekly limits)
+ * - Returns blockchain txHash for verification
+ * - Updates spending analytics
+ * - Checks for low balance alerts
+ *
  * Security: Bearer token required, rate limited, transaction limits enforced
  */
 router.post('/send', authenticateToolRequest, rateLimitByPhone, validateTransactionLimits, async (req, res) => {
   try {
-    const { phone, recipientName, amount } = req.body;
+    const { phone, recipientName, amount, confirmed = false } = req.body;
 
     // Validate required fields
     const validation = validateRequiredFields(req.body, ['phone', 'recipientName', 'amount']);
@@ -296,33 +387,122 @@ router.post('/send', authenticateToolRequest, rateLimitByPhone, validateTransact
       });
     }
 
-    // Execute transfer via Circle
-    const txResult = await circleService.sendUSDC(
+    // ============================================
+    // PILLAR 2 & 3: POLICY CHECK & GUARDRAILS
+    // ============================================
+    const approvalCheck = await policyService.checkAutoApproval(sender.id, contact.id, amount);
+
+    // If budget would be exceeded, block the transaction
+    if (approvalCheck.budgetExceeded) {
+      console.log(`[Send] BLOCKED: Budget exceeded - ${approvalCheck.reason}`);
+      return res.status(400).json({
+        error: 'Budget limit exceeded',
+        message: approvalCheck.reason,
+        budgetStatus: approvalCheck.budgetStatus,
+        requiresConfirmation: false,
+        blocked: true
+      });
+    }
+
+    // If confirmation is required and not yet confirmed
+    if (approvalCheck.requiresConfirmation && !confirmed) {
+      console.log(`[Send] Requires confirmation: ${approvalCheck.reason}`);
+      return res.json({
+        success: false,
+        requiresConfirmation: true,
+        reason: approvalCheck.reason,
+        budgetStatus: approvalCheck.budgetStatus,
+        message: `Please confirm: Send $${amount} USDC to ${recipientName}?`
+      });
+    }
+
+    const wasAutoApproved = approvalCheck.canAutoApprove;
+    if (wasAutoApproved) {
+      console.log(`[Send] AUTO-APPROVED: ${approvalCheck.reason}`);
+    }
+
+    // ============================================
+    // EXECUTE TRANSFER WITH CONFIRMATION
+    // ============================================
+    console.log(`[Send] Executing transfer with confirmation polling...`);
+
+    const txResult = await circleService.sendUSDCWithConfirmation(
       sender.wallet_id,
       contact.wallet_address,
       amount
     );
 
-    // Record transaction in database
-    await dbService.logTransaction(
-      sender.id,
-      'send',
-      amountNum,
+    if (!txResult.success) {
+      console.error(`[Send] Transaction failed: ${txResult.errorReason}`);
+
+      // Log failed transaction
+      await dbService.logTransactionWithDetails({
+        userId: sender.id,
+        type: 'send',
+        amount: amountNum,
+        recipientName,
+        circleTxId: txResult.transactionId,
+        status: 'failed',
+        wasAutoApproved
+      });
+
+      return res.status(500).json({
+        error: 'Transaction failed',
+        message: txResult.errorReason || 'The transaction could not be completed',
+        transactionId: txResult.transactionId,
+        state: txResult.state
+      });
+    }
+
+    // ============================================
+    // PILLAR 4: TREASURY - Update spending
+    // ============================================
+    await policyService.updateDailySpending(sender.id, amountNum);
+
+    // Log successful transaction with full details
+    await dbService.logTransactionWithDetails({
+      userId: sender.id,
+      type: 'send',
+      amount: amountNum,
       recipientName,
-      txResult.txId,
-      'completed'
-    );
+      circleTxId: txResult.transactionId,
+      status: 'completed',
+      txHash: txResult.txHash,
+      blockHeight: txResult.blockHeight,
+      wasAutoApproved
+    });
 
     // Get new balance
     const newBalance = await circleService.getBalance(sender.wallet_id);
 
-    console.log(`[Send] Transfer complete. TxId: ${txResult.txId}, New balance: ${newBalance} USDC`);
+    // Check for low balance alert
+    const lowBalanceAlert = await policyService.checkLowBalanceAlert(sender.id, newBalance);
 
+    console.log(`[Send] Transfer complete! TxHash: ${txResult.txHash}, New balance: ${newBalance} USDC`);
+
+    // ============================================
+    // RETURN COMPREHENSIVE RESPONSE
+    // ============================================
     res.json({
       success: true,
-      txId: txResult.txId,
-      newBalance: newBalance
+      autoApproved: wasAutoApproved,
+      transactionId: txResult.transactionId,
+      txHash: txResult.txHash,
+      blockHeight: txResult.blockHeight,
+      state: txResult.state,
+      amount: amount,
+      recipient: recipientName,
+      newBalance: newBalance,
+      confirmedAt: txResult.firstConfirmDate,
+      // Include budget status for agent context
+      budgetStatus: {
+        dailyRemaining: approvalCheck.budgetStatus.remainingToday - amountNum,
+        weeklyRemaining: approvalCheck.budgetStatus.remainingWeek - amountNum
+      },
+      // Alert if balance is low
+      lowBalanceWarning: lowBalanceAlert ? lowBalanceAlert.message : null
     });
+
   } catch (error) {
     console.error(`[Send Error] ${error.message}`);
     res.status(500).json({
@@ -501,6 +681,347 @@ router.post('/contacts/add', authenticateToolRequest, rateLimitByPhone, async (r
       error: 'Failed to add contact',
       message: error.message
     });
+  }
+});
+
+/**
+ * POST /api/policy
+ * Get or update user's policy settings
+ * Input: { phone: string, updates?: object }
+ * Output: { policy: object }
+ * Security: Bearer token required
+ */
+router.post('/policy', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
+  try {
+    const { phone, updates } = req.body;
+
+    const validation = validateRequiredFields(req.body, ['phone']);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        missing: validation.missing
+      });
+    }
+
+    const user = await dbService.getUserByPhone(phone);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No account found for this phone number'
+      });
+    }
+
+    let policy;
+    if (updates && Object.keys(updates).length > 0) {
+      // Validate update fields
+      const allowedFields = [
+        'auto_approve_limit',
+        'daily_spending_limit',
+        'weekly_spending_limit',
+        'low_balance_alert_threshold'
+      ];
+      const sanitizedUpdates = {};
+      for (const key of allowedFields) {
+        if (updates[key] !== undefined) {
+          sanitizedUpdates[key] = parseFloat(updates[key]);
+        }
+      }
+      policy = await policyService.updateUserPolicy(user.id, sanitizedUpdates);
+      console.log(`[Policy] Updated policy for ${phone}`);
+    } else {
+      policy = await policyService.getUserPolicy(user.id);
+    }
+
+    res.json({
+      policy: {
+        autoApproveLimit: policy.auto_approve_limit,
+        dailySpendingLimit: policy.daily_spending_limit,
+        weeklySpendingLimit: policy.weekly_spending_limit,
+        lowBalanceAlertThreshold: policy.low_balance_alert_threshold
+      }
+    });
+  } catch (error) {
+    console.error(`[Policy Error] ${error.message}`);
+    res.status(500).json({
+      error: 'Failed to get/update policy',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/policy/trusted
+ * Manage trusted contacts
+ * Input: { phone: string, action: 'list'|'add'|'remove', contactName?: string, autoApproveLimit?: number }
+ * Output: { trustedContacts: array } or { success: boolean }
+ */
+router.post('/policy/trusted', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
+  try {
+    const { phone, action = 'list', contactName, autoApproveLimit } = req.body;
+
+    const validation = validateRequiredFields(req.body, ['phone']);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        missing: validation.missing
+      });
+    }
+
+    const user = await dbService.getUserByPhone(phone);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No account found for this phone number'
+      });
+    }
+
+    if (action === 'list') {
+      const trusted = await policyService.getTrustedContacts(user.id);
+      return res.json({
+        trustedContacts: trusted.map(tc => ({
+          name: tc.contacts?.name,
+          autoApproveLimit: tc.auto_approve_limit,
+          addedAt: tc.created_at
+        }))
+      });
+    }
+
+    if (action === 'add') {
+      if (!contactName) {
+        return res.status(400).json({
+          error: 'Missing contact name',
+          message: 'Please specify which contact to add as trusted'
+        });
+      }
+
+      const contact = await dbService.getContactByName(user.id, contactName);
+      if (!contact) {
+        return res.status(404).json({
+          error: 'Contact not found',
+          message: `No contact named "${contactName}" found`
+        });
+      }
+
+      await policyService.addTrustedContact(
+        user.id,
+        contact.id,
+        autoApproveLimit ? parseFloat(autoApproveLimit) : null
+      );
+
+      console.log(`[Policy] Added trusted contact ${contactName} for ${phone}`);
+      return res.json({
+        success: true,
+        message: `${contactName} is now a trusted contact${autoApproveLimit ? ` with $${autoApproveLimit} auto-approve limit` : ''}`
+      });
+    }
+
+    if (action === 'remove') {
+      if (!contactName) {
+        return res.status(400).json({
+          error: 'Missing contact name',
+          message: 'Please specify which contact to remove from trusted'
+        });
+      }
+
+      const contact = await dbService.getContactByName(user.id, contactName);
+      if (!contact) {
+        return res.status(404).json({
+          error: 'Contact not found',
+          message: `No contact named "${contactName}" found`
+        });
+      }
+
+      await policyService.removeTrustedContact(user.id, contact.id);
+      console.log(`[Policy] Removed trusted contact ${contactName} for ${phone}`);
+      return res.json({
+        success: true,
+        message: `${contactName} is no longer a trusted contact`
+      });
+    }
+
+    res.status(400).json({
+      error: 'Invalid action',
+      message: 'Action must be "list", "add", or "remove"'
+    });
+  } catch (error) {
+    console.error(`[Policy/Trusted Error] ${error.message}`);
+    res.status(500).json({
+      error: 'Failed to manage trusted contacts',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/spending
+ * Get spending summary and analytics (PILLAR 4: TREASURY)
+ * Input: { phone: string, days?: number }
+ * Output: { summary: object with spending analytics }
+ */
+router.post('/spending', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
+  try {
+    const { phone, days = 7 } = req.body;
+
+    const validation = validateRequiredFields(req.body, ['phone']);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        missing: validation.missing
+      });
+    }
+
+    const user = await dbService.getUserByPhone(phone);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No account found for this phone number'
+      });
+    }
+
+    const summary = await policyService.getSpendingSummary(user.id, Math.min(days, 30));
+
+    console.log(`[Spending] Retrieved ${days}-day summary for ${phone}`);
+
+    res.json({ summary });
+  } catch (error) {
+    console.error(`[Spending Error] ${error.message}`);
+    res.status(500).json({
+      error: 'Failed to get spending summary',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/alerts
+ * Get user's unread alerts
+ * Input: { phone: string, markAsRead?: boolean }
+ * Output: { alerts: array }
+ */
+router.post('/alerts', authenticateToolRequest, rateLimitByPhone, async (req, res) => {
+  try {
+    const { phone, markAsRead = false } = req.body;
+
+    const validation = validateRequiredFields(req.body, ['phone']);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        missing: validation.missing
+      });
+    }
+
+    const user = await dbService.getUserByPhone(phone);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No account found for this phone number'
+      });
+    }
+
+    const alerts = await policyService.getUnreadAlerts(user.id);
+
+    if (markAsRead && alerts.length > 0) {
+      await policyService.markAlertsAsRead(user.id);
+    }
+
+    res.json({
+      alerts: alerts.map(a => ({
+        type: a.alert_type,
+        title: a.title,
+        message: a.message,
+        createdAt: a.created_at
+      }))
+    });
+  } catch (error) {
+    console.error(`[Alerts Error] ${error.message}`);
+    res.status(500).json({
+      error: 'Failed to get alerts',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/circle-webhook
+ * Circle webhook endpoint for transaction notifications
+ * Handles: transactions.inbound (deposits) and transactions.outbound (sends)
+ * This enables proactive notifications when funds are received
+ */
+router.post('/circle-webhook', async (req, res) => {
+  try {
+    const { subscriptionId, notificationId, notificationType, notification } = req.body;
+
+    console.log(`[Circle Webhook] Received ${notificationType} notification`);
+
+    // Handle inbound transactions (deposits/receives)
+    if (notificationType === 'transactions.inbound') {
+      const { transaction } = notification;
+
+      if (transaction.state === 'COMPLETE') {
+        // Find user by wallet ID
+        const user = await dbService.getUserByWalletId(transaction.walletId);
+
+        if (user) {
+          // Find USDC amount
+          const usdcAmount = transaction.amounts?.find(a =>
+            a.token?.symbol === 'USDC'
+          );
+
+          const amount = usdcAmount?.amount || '0';
+
+          console.log(`[Circle Webhook] User ${user.phone} received ${amount} USDC`);
+
+          // Log the incoming transaction
+          await dbService.logTransactionWithDetails({
+            userId: user.id,
+            type: 'receive',
+            amount: parseFloat(amount),
+            recipientName: 'External',
+            circleTxId: transaction.id,
+            status: 'completed',
+            txHash: transaction.txHash,
+            blockHeight: transaction.blockHeight,
+            wasAutoApproved: false
+          });
+
+          // Create alert for user
+          await policyService.createAlert(
+            user.id,
+            'deposit_received',
+            'Funds Received!',
+            `You received ${amount} USDC. Your new balance is ready to use.`,
+            {
+              txHash: transaction.txHash,
+              amount,
+              from: transaction.sourceAddress
+            }
+          );
+
+          // TODO: Send text notification via ElevenLabs when implemented
+        }
+      }
+    }
+
+    // Handle outbound transaction updates (for status changes)
+    if (notificationType === 'transactions.outbound') {
+      const { transaction } = notification;
+
+      if (transaction.state === 'COMPLETE' || transaction.state === 'FAILED') {
+        // Update transaction record with final status
+        await dbService.updateTransactionDetails(transaction.id, {
+          status: transaction.state === 'COMPLETE' ? 'completed' : 'failed',
+          tx_hash: transaction.txHash,
+          block_height: transaction.blockHeight
+        });
+      }
+    }
+
+    // Always return 200 to acknowledge receipt
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error(`[Circle Webhook Error] ${error.message}`);
+    // Still return 200 to prevent retries
+    res.status(200).json({ received: true, error: error.message });
   }
 });
 

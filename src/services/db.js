@@ -280,5 +280,118 @@ export async function getRecentTransactions(userId, limit = 5) {
   }
 }
 
+/**
+ * Get user by wallet ID (for Circle webhooks)
+ * @param {string} walletId - The Circle wallet ID
+ * @returns {Promise<Object|null>} The user object or null if not found
+ */
+export async function getUserByWalletId(walletId) {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('wallet_id', walletId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return data || null;
+  } catch (error) {
+    console.error('Error in getUserByWalletId:', error);
+    return null;
+  }
+}
+
+/**
+ * Log a transaction with full details (including txHash and block info)
+ * @param {Object} txDetails - Transaction details
+ * @returns {Promise<Object>} The created transaction record
+ */
+export async function logTransactionWithDetails(txDetails) {
+  try {
+    const {
+      userId,
+      type,
+      amount,
+      recipientName,
+      circleTxId,
+      status,
+      txHash = null,
+      blockHeight = null,
+      wasAutoApproved = false
+    } = txDetails;
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        type,
+        amount,
+        recipient_name: recipientName,
+        circle_tx_id: circleTxId,
+        status,
+        tx_hash: txHash,
+        block_height: blockHeight,
+        was_auto_approved: wasAutoApproved
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error in logTransactionWithDetails:', error);
+    throw new Error(`Failed to log transaction: ${error.message}`);
+  }
+}
+
+/**
+ * Update transaction with txHash and block info
+ * @param {string} circleTxId - Circle transaction ID
+ * @param {Object} updates - Fields to update
+ */
+export async function updateTransactionDetails(circleTxId, updates) {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('circle_tx_id', circleTxId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error in updateTransactionDetails:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get contact by ID
+ * @param {string} contactId - The contact's UUID
+ * @returns {Promise<Object|null>} The contact object or null
+ */
+export async function getContactById(contactId) {
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', contactId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error in getContactById:', error);
+    return null;
+  }
+}
+
 // Export the Supabase client for advanced use cases
 export { supabase };

@@ -343,3 +343,85 @@ export async function sendUSDC(fromWalletId, toWalletAddress, amount) {
   const result = await transferUSDC(fromWalletId, toWalletAddress, amount);
   return { txId: result.transactionId };
 }
+
+/**
+ * Send USDC and wait for confirmation (returns txHash)
+ * Polls the transaction until COMPLETE or FAILED (max 30 seconds)
+ *
+ * @param {string} fromWalletId - Source wallet ID
+ * @param {string} toWalletAddress - Destination address
+ * @param {string} amount - Amount to send
+ * @returns {Promise<Object>} Transaction result with txHash
+ */
+export async function sendUSDCWithConfirmation(fromWalletId, toWalletAddress, amount) {
+  try {
+    // Create the transfer
+    const txResult = await transferUSDC(fromWalletId, toWalletAddress, amount);
+    const transactionId = txResult.transactionId;
+
+    console.log(`[Circle] Transaction initiated: ${transactionId}, polling for confirmation...`);
+
+    // Poll for completion (max 15 attempts, 2 seconds apart = 30 seconds)
+    const MAX_ATTEMPTS = 15;
+    const POLL_INTERVAL = 2000;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+
+      const tx = await getTransaction(transactionId);
+
+      console.log(`[Circle] Poll ${attempt}/${MAX_ATTEMPTS}: State = ${tx.state}`);
+
+      if (tx.state === 'COMPLETE') {
+        console.log(`[Circle] Transaction confirmed! TxHash: ${tx.txHash}`);
+        return {
+          success: true,
+          transactionId: tx.id,
+          txHash: tx.txHash,
+          blockHash: tx.blockHash,
+          blockHeight: tx.blockHeight,
+          state: tx.state,
+          networkFee: tx.networkFee,
+          amounts: tx.amounts,
+          sourceAddress: tx.sourceAddress,
+          destinationAddress: tx.destinationAddress,
+          firstConfirmDate: tx.firstConfirmDate
+        };
+      }
+
+      if (tx.state === 'FAILED') {
+        console.error(`[Circle] Transaction failed: ${tx.errorReason}`);
+        return {
+          success: false,
+          transactionId: tx.id,
+          state: tx.state,
+          errorReason: tx.errorReason,
+          errorDetails: tx.errorDetails
+        };
+      }
+
+      // CANCELLED, DENIED also mean failure
+      if (['CANCELLED', 'DENIED'].includes(tx.state)) {
+        return {
+          success: false,
+          transactionId: tx.id,
+          state: tx.state,
+          errorReason: `Transaction ${tx.state.toLowerCase()}`
+        };
+      }
+    }
+
+    // Timeout - transaction still pending
+    console.warn(`[Circle] Transaction still pending after ${MAX_ATTEMPTS * POLL_INTERVAL / 1000}s`);
+    return {
+      success: true, // Still might succeed, just taking long
+      transactionId: transactionId,
+      state: 'PENDING',
+      message: 'Transaction submitted but confirmation is taking longer than expected. Check back shortly.'
+    };
+
+  } catch (error) {
+    console.error('[Circle] Error in sendUSDCWithConfirmation:', error);
+    throw error;
+  }
+}
