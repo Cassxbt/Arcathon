@@ -63,17 +63,53 @@ export async function getOrCreateUser(phone) {
 }
 
 /**
+ * Normalize phone number to handle various formats
+ * Tries both with and without + prefix
+ * @param {string} phone - The phone number to normalize
+ * @returns {string[]} Array of possible phone formats to try
+ */
+function normalizePhoneFormats(phone) {
+  if (!phone) return [];
+
+  // Remove spaces, dashes, parentheses
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+
+  const formats = [];
+
+  // If it starts with +, try both with and without
+  if (cleaned.startsWith('+')) {
+    formats.push(cleaned);           // +2348104916815
+    formats.push(cleaned.slice(1));  // 2348104916815
+  } else {
+    // If no +, try both with and without
+    formats.push(cleaned);           // 2348104916815
+    formats.push('+' + cleaned);     // +2348104916815
+  }
+
+  return formats;
+}
+
+/**
  * Get user by phone number
+ * Handles phone numbers with or without + prefix
  * @param {string} phone - The user's phone number
  * @returns {Promise<Object|null>} The user object or null if not found
  * @throws {Error} If database operation fails
  */
 export async function getUserByPhone(phone) {
   try {
+    const phoneFormats = normalizePhoneFormats(phone);
+
+    if (phoneFormats.length === 0) {
+      return null;
+    }
+
+    // Try to find user with any of the phone formats
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('phone', phone)
+      .in('phone', phoneFormats)
+      .limit(1)
       .single();
 
     if (error && error.code !== 'PGRST116') {
