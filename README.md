@@ -6,23 +6,23 @@
 
 ## The Problem Nobody's Solving
 
-Here's the thing: 1.7 billion adults don't have a bank account. And it's not because they don't want one.
+Here's the big issue: More than 1.7 billion adults round the world don't have a bank account. And it's not because they don't want one.
 
-Most fintech apps assume you can read well. They assume you have a smartphone with storage for another app. They assume you're comfortable navigating complex UIs. A lot of people aren't.
+Most fintech apps assume you can read well, They assume you have a smartphone with storage for another app, They assume you're comfortable navigating complex UIs. A lot of people aren't and this is not taken accounted for.
 
-But almost everyone can talk.
+But almost everyone can talk and communicate.
 
-And 2 billion people already have WhatsApp on their phone.
+And then, 2 billion people already have WhatsApp on their phone.
 
 So we asked: what if you could manage your money just by talking? No app to download. No forms to fill out. No UI to learn. Just... talk.
 
-That's PayVoice.
+That's PayVoice (JEN).
 
 ---
 
 ## What We Built
 
-PayVoice is a voice-powered payment agent that lives on WhatsApp. You call it like you'd call a friend, and it handles your money.
+PayVoice is a voice-powered commerce payment agent that lives on WhatsApp. You call it and chat with it like you'd call a friend, and it handles your money.
 
 Here's what I mean:
 
@@ -38,7 +38,7 @@ That's the key word: **acts**. Not "waits for permission." Acts.
 
 ## The 4 Pillars (What Makes This Actually Agentic)
 
-Look, everyone's calling their chatbots "agents" these days. But there's a difference between an agent and a fancy chatbot. An agent makes decisions. An agent has context. An agent operates within guardrails but doesn't need you to hold its hand.
+Look, everyone's calling their whatever they build, "agents" these days. But there's a difference between an agent and a fancy chatbot. An agent makes decisions autonomously, An agent has context, An agent operates within guardrails but doesn't need you to hold its hand.
 
 Here's what that looks like in practice:
 
@@ -64,7 +64,7 @@ The agent doesn't just enforce these rules - it explains its reasoning:
 
 > "Auto-approved because Mom is in your trusted list and $5 is under your $10 limit."
 
-That's not us being cute. Judges specifically want to see agents that can explain their autonomous decisions.
+That's not us being cute, the agent is context aware and understands intent. 
 
 ```javascript
 // The actual decision logic
@@ -78,7 +78,7 @@ if (approvalCheck.canAutoApprove) {
 
 ### 3. Guardrails
 
-Freedom with limits. That's the balance.
+Freedom with limits. That's the balance for autonomous agents.
 
 The agent will auto-approve your $5 to Mom. But it'll stop you from blowing your entire budget:
 
@@ -90,23 +90,23 @@ And after every transaction, you get the real blockchain confirmation:
 
 > "Confirmed on blockchain! View: https://testnet.arcscan.app/tx/0xd653a5c40078cb8f66717fd3ebf5d944938eac5b"
 
-That's not a fake receipt. That's a real transaction on ARC. Click it. Verify it.
+This is not a fake receipt. That's a real transaction on ARC. Click it and then Verify it.
 
 ### 4. Treasury
 
-The agent doesn't just move money - it understands your money.
+The agent doesn't just move money for you - it understands your money.
 
 > **You:** "How much have I spent this week?"
 >
 > **Jen:** "This week you've spent $127. $50 to Mom (40%), $40 to John (31%), $37 to others. You've got $73 left in your weekly budget."
 
-That's not a balance check. That's financial awareness. The agent tracks:
+It's not just giving a balance check, it's showing financial awareness. The agent tracks:
 - Daily spending totals
 - Weekly spending totals
 - Top recipients
 - Budget utilization percentages
 
-This is treasury logic. Autonomous fund management. The kind of thing judges want to see.
+This is treasury logic. Autonomous fund management. The kind of thing users want to use.
 
 ---
 
@@ -219,13 +219,13 @@ Each scene demonstrates a pillar. Identity, Policies, Guardrails, Treasury.
 
 We're not building for people who already have Venmo.
 
-We're building for the woman in Lagos who sends money to her mother in the village. She has WhatsApp. She might not read English fluently. But she can say "send 5,000 naira to Mama" and trust that it happens.
+We're building for the woman in Lagos Nigeria who sends money to her mother in the village. She has WhatsApp, She might not read English fluently. But she can say "send 5,000 naira to Mama" and trust that it happens.
 
-We're building for the farmer in Kenya who gets paid in USDC and needs to know his balance without downloading another app.
+We're building for the farmer in Phillipines who gets paid in USDC and needs to know his balance without downloading another app.
 
-We're building for the billion people that fintech forgot.
+We're building for the billion people that fintech forgot about.
 
-Voice-first. WhatsApp-native. Policy-driven. Autonomous.
+Chat aware, Voice-first. WhatsApp-native. Policy-driven. Autonomous.
 
 That's PayVoice.
 
@@ -292,7 +292,7 @@ alerts (user_id, alert_type, title, message, is_read)
 
 ## Team
 
-Built for the Agentic Commerce on ARC hackathon.
+Built by Cassxbt for the Agentic Commerce on ARC hackathon.
 
 We believe financial services should be as easy as talking to a friend. No forms. No apps. No barriers.
 
