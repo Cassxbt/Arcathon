@@ -18,6 +18,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Static landing page
+app.use(express.static('public'));
+
 // Request logging middleware
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
@@ -35,19 +38,7 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.status(200).json({
-    name: 'PayVoice API',
-    version: '1.0.0',
-    description: 'Voice-first payment assistant on WhatsApp',
-    endpoints: {
-      health: '/health',
-      balance: 'POST /api/balance',
-      send: 'POST /api/send',
-      history: 'POST /api/history',
-      contacts: 'POST /api/contacts',
-      addContact: 'POST /api/contacts/add'
-    }
-  });
+  res.sendFile('public/index.html', { root: process.cwd() });
 });
 
 // Mount webhook routes

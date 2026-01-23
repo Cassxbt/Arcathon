@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PayVoice — Messaging-First Payments on WhatsApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #11100f;
+        --muted: #6b6762;
+        --paper: #fbf6ee;
+        --sunset: #f7c87d;
+        --ember: #f07b52;
+        --olive: #27433f;
+        --ocean: #0e3a4c;
+        --glass: rgba(255, 255, 255, 0.65);
+        --shadow: 0 24px 60px rgba(30, 30, 30, 0.16);
+        --card: #ffffff;
+        --border: rgba(0, 0, 0, 0.08);
+        --hero-grad: radial-gradient(circle at top left, #fff4d9 0%, #f9ede0 35%, #f6f0ea 60%, #edf5f6 100%);
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --ink: #f2ede6;
+        --muted: #b8b2a8;
+        --paper: #0e0f10;
+        --sunset: #f2b96a;
+        --ember: #e36c4a;
+        --olive: #b9c9c2;
+        --ocean: #6fb6c8;
+        --glass: rgba(16, 18, 20, 0.7);
+        --shadow: 0 26px 70px rgba(0, 0, 0, 0.45);
+        --card: #181b1e;
+        --border: rgba(255, 255, 255, 0.1);
+        --hero-grad: radial-gradient(circle at top right, #1c1f24 0%, #101215 40%, #0d1114 75%, #0b0d10 100%);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        color: var(--ink);
+        background: var(--hero-grad);
+        min-height: 100vh;
+        transition: background 0.6s ease, color 0.4s ease;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .container {
+        width: min(1120px, 92vw);
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 28px 0 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .theme-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .switch {
+        position: relative;
+        width: 54px;
+        height: 30px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        transition: background 0.3s ease, border 0.3s ease;
+      }
+
+      .slider::before {
+        content: "";
+        position: absolute;
+        height: 22px;
+        width: 22px;
+        left: 4px;
+        top: 3px;
+        background: linear-gradient(135deg, var(--ember), var(--sunset));
+        border-radius: 50%;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+        transition: transform 0.25s ease;
+      }
+
+      .switch input:checked + .slider::before {
+        transform: translateX(24px);
+      }
+
+      .theme-label {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        font-size: 1.1rem;
+      }
+
+      .brand-badge {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--ember), var(--sunset));
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-weight: 700;
+        box-shadow: var(--shadow);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 18px;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+
+      .hero {
+        padding: 70px 0 60px;
+        display: grid;
+        gap: 40px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        align-items: center;
+      }
+
+      .hero h1 {
+        font-family: "Fraunces", serif;
+        font-size: clamp(2.6rem, 4vw, 4.2rem);
+        line-height: 1.05;
+        margin-bottom: 16px;
+      }
+
+      .hero p {
+        font-size: 1.05rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .cta-row {
+        margin-top: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      .cta {
+        padding: 14px 24px;
+        border-radius: 999px;
+        font-weight: 600;
+        background: var(--olive);
+        color: #fff;
+        box-shadow: var(--shadow);
+        transition: transform 0.2s ease, box-shadow 0.3s ease;
+      }
+
+      .cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 40px rgba(39, 67, 63, 0.25);
+      }
+
+      .cta.secondary {
+        background: transparent;
+        border: 1.5px solid rgba(39, 67, 63, 0.2);
+        color: var(--olive);
+      }
+
+      .hero-card {
+        background: var(--glass);
+        border-radius: 26px;
+        padding: 28px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+
+      .hero-card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+      }
+
+      .pillars {
+        display: grid;
+        gap: 14px;
+      }
+
+      .pill {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        background: var(--card);
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+      }
+
+      .pill span {
+        font-weight: 700;
+        color: var(--ember);
+      }
+
+      section {
+        margin: 70px 0;
+      }
+
+      .section-title {
+        font-size: clamp(1.6rem, 2.4vw, 2.4rem);
+        margin-bottom: 18px;
+      }
+
+      .lead {
+        color: var(--muted);
+        line-height: 1.7;
+        font-size: 1rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        margin-top: 24px;
+      }
+
+      .card {
+        background: var(--card);
+        border-radius: 20px;
+        padding: 22px;
+        border: 1px solid var(--border);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+      }
+
+      .card h4 {
+        margin-bottom: 10px;
+      }
+
+      .highlight {
+        background: linear-gradient(120deg, rgba(240, 123, 82, 0.2), rgba(247, 200, 125, 0.3));
+        border-radius: 18px;
+        padding: 26px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .architecture {
+        background: linear-gradient(135deg, #0f2f3f 0%, #0f1f2c 100%);
+        color: #fff;
+        border-radius: 26px;
+        padding: 28px;
+        line-height: 1.6;
+      }
+
+      .demo {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        align-items: center;
+      }
+
+      .video-shell {
+        aspect-ratio: 16 / 9;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        background: #000;
+      }
+
+      .video-shell video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        background: #000;
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      .github-block {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 24px 28px;
+        border-radius: 22px;
+        background: var(--card);
+        border: 1px solid var(--border);
+      }
+
+      .reveal {
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 0.6s ease, transform 0.6s ease;
+      }
+
+      body.js-enabled .reveal {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+
+      body.js-enabled .reveal.in-view {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @keyframes floatIn {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .hero > div {
+        animation: floatIn 0.8s ease both;
+      }
+
+      .hero > div:nth-child(2) {
+        animation-delay: 0.12s;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .hero > div,
+        .reveal {
+          animation: none;
+          transition: none;
+        }
+      }
+
+      .footer {
+        padding: 40px 0 60px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      @media (max-width: 720px) {
+        header {
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .nav-links {
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .github-block {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="brand">
+          <div class="brand-badge">PV</div>
+          <span>PayVoice</span>
+        </div>
+        <nav class="nav-links">
+          <a href="#why">Why PayVoice</a>
+          <a href="#pillars">Agentic Pillars</a>
+          <a href="#demo">Demo</a>
+          <a href="#stack">Tech Stack</a>
+          <a href="#github">GitHub</a>
+        </nav>
+        <div class="theme-toggle">
+          <span class="theme-label" id="themeLabel">Light</span>
+          <label class="switch" aria-label="Toggle dark mode">
+            <input id="themeToggle" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <h1>Messaging-first payments for the next billion WhatsApp users.</h1>
+          <p>
+            PayVoice is a WhatsApp-native payment assistant that lets anyone send and manage USDC
+            through simple chat today, with voice-ready flows as the next layer. No apps. No forms.
+            Just a conversation backed by Circle on Arc.
+          </p>
+          <div class="cta-row">
+            <a class="cta" href="#demo">Watch the demo</a>
+            <a class="cta secondary" href="#github">View GitHub</a>
+          </div>
+        </div>
+        <div class="hero-card">
+          <h3>Autonomous + Accountable</h3>
+          <div class="pillars">
+            <div class="pill">
+              <span>01</span>
+              <div>
+                <strong>Identity-aware</strong>
+                <p class="lead">Recognizes the caller, greets by name, and keeps context.</p>
+              </div>
+            </div>
+            <div class="pill">
+              <span>02</span>
+              <div>
+                <strong>Policy-driven</strong>
+                <p class="lead">Auto-approves trusted transfers and enforces budgets.</p>
+              </div>
+            </div>
+            <div class="pill">
+              <span>03</span>
+              <div>
+                <strong>Guardrail-first</strong>
+                <p class="lead">Explains every block and keeps users in control.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="why" class="reveal">
+        <h2 class="section-title">Why PayVoice exists</h2>
+        <p class="lead">
+          1.7B adults are unbanked. Most financial apps assume literacy, smartphones, and time.
+          WhatsApp already reaches 2B people. PayVoice turns that reach into text-first access to
+          stable, borderless money while keeping voice on the roadmap.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <h4>Accessibility built in</h4>
+            <p class="lead">Older adults, low-literacy users, and gig workers can transact by voice.</p>
+          </div>
+          <div class="card">
+            <h4>Instant global rails</h4>
+            <p class="lead">USDC on Arc settles in seconds, with transparent on-chain receipts.</p>
+          </div>
+          <div class="card">
+            <h4>Trust through context</h4>
+            <p class="lead">Policies, daily limits, and trusted contacts keep every transfer safe.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="pillars" class="reveal">
+        <h2 class="section-title">The four agentic pillars</h2>
+        <div class="grid">
+          <div class="card">
+            <h4>Identity</h4>
+            <p class="lead">Personalized greetings and context from Supabase user profiles.</p>
+          </div>
+          <div class="card">
+            <h4>Policies</h4>
+            <p class="lead">Auto-approve thresholds and trusted contacts enable autonomy.</p>
+          </div>
+          <div class="card">
+            <h4>Guardrails</h4>
+            <p class="lead">Daily/weekly limits keep spending safe without breaking the flow.</p>
+          </div>
+          <div class="card">
+            <h4>Treasury</h4>
+            <p class="lead">Spending analytics so users understand and plan their money.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="demo" class="demo reveal">
+        <div>
+          <h2 class="section-title">Demo video</h2>
+          <p class="lead">
+            Showcasing the WhatsApp chat flow, policy decisions, and Arc testnet confirmation.
+            Replace the video URL below with your demo link when ready.
+          </p>
+        </div>
+        <div class="video-shell">
+          <video controls preload="metadata" poster="" aria-label="PayVoice demo video">
+            <source src="/assets/demo.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </section>
+
+      <section id="stack" class="highlight reveal">
+        <h2 class="section-title">Tech stack</h2>
+        <p class="lead">
+          ElevenLabs Agents handles natural language processing and voice experimentation, while
+          today’s production flow is chat-first. Circle’s ARC testnet powers USDC transfers.
+          Supabase stores identity + policies. The backend is an Express API deployed on Vercel.
+        </p>
+      </section>
+
+      <section class="architecture reveal">
+        <h2 class="section-title">Architecture at a glance</h2>
+        <p>
+          WhatsApp messages → Agent reasoning → PayVoice API tools → Circle transfer on Arc →
+          confirmations back to WhatsApp. Voice is being layered in next.
+        </p>
+      </section>
+
+      <section id="github" class="reveal">
+        <div class="github-block">
+          <div>
+            <h3>Open source on GitHub</h3>
+            <p class="lead">Replace the link with your repo URL before launch.</p>
+          </div>
+          <a class="cta" href="https://github.com/Cassxbt/Arcathon" target="_blank" rel="noreferrer">
+            View GitHub Repository
+          </a>
+        </div>
+      </section>
+
+      <section class="footer reveal">
+        Built for the Agentic Commerce on Arc hackathon · PayVoice 2026
+      </section>
+    </div>
+    <script>
+      const root = document.documentElement;
+      document.body.classList.add('js-enabled');
+      const toggle = document.getElementById('themeToggle');
+      const label = document.getElementById('themeLabel');
+      const storedTheme = localStorage.getItem('payvoice-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initialTheme = storedTheme || (prefersDark ? 'dark' : 'light');
+
+      const setTheme = (theme) => {
+        root.dataset.theme = theme;
+        document.body.dataset.theme = theme;
+        label.textContent = theme === 'dark' ? 'Dark' : 'Light';
+        toggle.checked = theme === 'dark';
+        localStorage.setItem('payvoice-theme', theme);
+      };
+
+      setTheme(initialTheme);
+
+      toggle.addEventListener('change', (event) => {
+        setTheme(event.target.checked ? 'dark' : 'light');
+      });
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('in-view');
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.15 }
+      );
+
+      document.querySelectorAll('.reveal').forEach((section) => observer.observe(section));
+    </script>
+  </body>
+</html>

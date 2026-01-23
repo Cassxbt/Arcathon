@@ -20,6 +20,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Static landing page
+app.use(express.static('public'));
+
 // Request logging middleware
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
@@ -46,6 +49,11 @@ app.get('/health', (req, res) => {
 
 // Mount webhook routes
 app.use('/api', webhookRoutes);
+
+// Serve static landing page at root
+app.get('/', (req, res) => {
+  res.sendFile('public/index.html', { root: process.cwd() });
+});
 
 // 404 handler
 app.use((req, res) => {
